@@ -37,7 +37,7 @@ const navItems = [
       <div class="w-[30px] h-[30px] rounded-lg bg-gradient-to-br from-brand-300 to-mauve shrink-0 flex items-center justify-center font-bold text-xs">
         RIT
       </div>
-      <span class="font-bold text-[16px] tracking-[.2px]">Performa</span>
+      <span class="font-bold text-[16px] tracking-[.2px]">Rit app</span>
     </div>
 
     <router-link 
