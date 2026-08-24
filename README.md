@@ -33,3 +33,10 @@ Plataforma de monitoramento de desempenho e avaliações de funcionários.
 
 - Backend: Django, Django REST Framework, PostgreSQL
 - Frontend: Vue 3, Vite, Tailwind CSS, FontAwesome
+
+## Documentação
+
+- Para acompanhar o processo de desenvolvimento acesse: [Case_Tecnico_RIT_Documentacao.pdf](https://github.com/nickkjj/Rit-App/blob/main/Case_Tecnico_RIT_Documentacao.pdf)
+- Para verificar a documentação do código acesse: [DOCUMENTATION.md](https://github.com/nickkjj/Rit-App/blob/main/DOCUMENTATION.md)
+- Para a documentação de endpoints acesse a rota na api `/api/docs/` ou acesse a versão .md em: [API_DOCS.md](https://github.com/nickkjj/Rit-App/blob/main/API_DOCS.md)
+
