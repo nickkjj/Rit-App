@@ -1,0 +1,50 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body {
+    @apply bg-bg text-textMain m-0 p-0;
+  }
+}
+
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply rounded-custom text-[13.5px] font-semibold py-[9px] px-[15px] border border-transparent inline-flex items-center gap-[7px] whitespace-nowrap cursor-pointer font-sans;
+  }
+  .btn-primary {
+    @apply bg-brand-700 text-white hover:bg-brand-600 disabled:bg-[#CBBFD6] disabled:cursor-not-allowed;
+  }
+  .btn-ghost {
+    @apply bg-transparent text-textMain border-border hover:bg-[#F4F2F6];
+  }
+  .btn-sm {
+    @apply py-[6px] px-[11px] text-[12.5px];
+  }
+  .icon-btn {
+    @apply border border-border bg-surface rounded-lg p-[7px] text-text2 hover:text-textMain hover:bg-[#F4F2F6] cursor-pointer;
+  }
+
+  /* Cards */
+  .card {
+    @apply bg-surface border border-border rounded-custom shadow-custom;
+  }
+
+  /* Badges */
+  .badge {
+    @apply text-[11.5px] font-bold py-[4px] px-[10px] rounded-full shrink-0;
+  }
+  .badge-pending {
+    @apply bg-pending-bg text-pending-fg;
+  }
+  .badge-done {
+    @apply bg-done-bg text-done-fg;
+  }
+  .rel-chip {
+    @apply text-[10.5px] font-bold uppercase tracking-[.03em] py-[2px] px-[7px] rounded-[5px] bg-[#EEEAF2] text-brand-700 shrink-0;
+  }
+  .avatar {
+    @apply w-[28px] h-[28px] rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold text-[12px] shrink-0;
+  }
+}

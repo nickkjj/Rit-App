@@ -1,0 +1,605 @@
+<!DOCTYPE html>
+<html lang="pt-BR" class="scroll-smooth">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RIT App - Documentação da API</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    pre { background-color: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; font-size: 0.875rem; position: relative; }
+    .method-badge { font-weight: bold; padding: 0.25rem 0.5rem; border-radius: 0.25rem; font-size: 0.75rem; letter-spacing: 0.05em; }
+    .get { background-color: #dbeafe; color: #1e40af; }
+    .post { background-color: #dcfce7; color: #166534; }
+    .term { background-color: #0d1117; color: #c9d1d9; border: 1px solid #30363d; }
+    
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: #f1f1f1; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  </style>
+  <script>
+    function copyToClipboard(button, codeId) {
+      const codeElement = document.getElementById(codeId);
+      const text = codeElement.innerText || codeElement.textContent;
+      
+      navigator.clipboard.writeText(text).then(() => {
+        const originalText = button.innerText;
+        button.innerText = 'Copiado!';
+        button.classList.add('bg-green-600', 'text-white');
+        button.classList.remove('bg-gray-200', 'text-gray-700');
+        
+        setTimeout(() => {
+          button.innerText = originalText;
+          button.classList.remove('bg-green-600', 'text-white');
+          button.classList.add('bg-gray-200', 'text-gray-700');
+        }, 2000);
+      });
+    }
+
+    function copyCurl(button, endpoint, method, bodyId, requiresAuth) {
+      let curl = `curl -X ${method} http://localhost:8000${endpoint} \\\n  -H "Content-Type: application/json"`;
+      
+      if (requiresAuth) {
+        const emailInput = document.getElementById('auth-email');
+        const email = emailInput && emailInput.value ? emailInput.value : 'macielniiicolas@gmail.com';
+        curl += ` \\\n  -H "X-User-Email: ${email}"`;
+      }
+
+      if (bodyId) {
+        const bodyContent = document.getElementById(bodyId).innerText;
+        try {
+          curl += ` \\\n  -d '${JSON.stringify(JSON.parse(bodyContent))}'`;
+        } catch(e) {
+          curl += ` \\\n  -d '${bodyContent.trim()}'`;
+        }
+      }
+
+      navigator.clipboard.writeText(curl).then(() => {
+        const originalText = button.innerText;
+        button.innerText = 'cURL Copiado!';
+        button.classList.add('bg-indigo-600', 'text-white');
+        button.classList.remove('bg-indigo-100', 'text-indigo-700');
+        
+        setTimeout(() => {
+          button.innerText = originalText;
+          button.classList.remove('bg-indigo-600', 'text-white');
+          button.classList.add('bg-indigo-100', 'text-indigo-700');
+        }, 2000);
+      });
+    }
+
+    async function testRequest(button, endpoint, method, bodyId, terminalId, requiresAuth) {
+      const terminal = document.getElementById(terminalId);
+      terminal.innerHTML = '<span class="text-gray-500">Enviando requisição...</span>';
+      terminal.classList.remove('hidden');
+
+      const headers = { 'Content-Type': 'application/json' };
+      if (requiresAuth) {
+        const emailInput = document.getElementById('auth-email');
+        if(!emailInput || !emailInput.value) {
+           terminal.innerHTML = '<span class="text-red-400">Erro: Insira um email no campo de autenticação acima.</span>';
+           return;
+        }
+        headers['X-User-Email'] = emailInput.value;
+      }
+
+      let options = { method, headers };
+      if (bodyId) {
+        const bodyContent = document.getElementById(bodyId).innerText;
+        try {
+          // just format to ensure it's valid JSON for fetch
+          options.body = JSON.stringify(JSON.parse(bodyContent));
+        } catch(e) {
+          terminal.innerHTML = '<span class="text-red-400">Erro de formatação JSON no body.</span>';
+          return;
+        }
+      }
+
+      try {
+        // Assume API running on 8000 based on instructions
+        const response = await fetch('http://localhost:8000' + endpoint, options);
+        let data;
+        try { 
+          data = await response.json(); 
+        } catch(e) { 
+          data = await response.text(); 
+        }
+        
+        let color = response.ok ? 'text-green-400' : 'text-red-400';
+        terminal.innerHTML = `<span class="${color} font-bold mb-2 block">HTTP ${response.status}</span>` + 
+                             (typeof data === 'object' ? JSON.stringify(data, null, 2) : data);
+      } catch (err) {
+        terminal.innerHTML = `<span class="text-red-400 font-bold block mb-2">Network Error</span>` +
+                             `Falha de conexão. O servidor Django está rodando na porta 8000? (${err.message})`;
+      }
+    }
+  </script>
+</head>
+<body class="bg-gray-50 text-gray-800 antialiased selection:bg-indigo-100 selection:text-indigo-900">
+
+  <div class="flex flex-col md:flex-row min-h-screen">
+    
+    <!-- Sidebar -->
+    <aside class="w-full md:w-64 bg-white border-r border-gray-200 shrink-0 md:h-screen md:sticky top-0 overflow-y-auto">
+      <div class="p-6 border-b border-gray-200">
+        <h1 class="text-2xl font-extrabold text-gray-900 tracking-tight">RIT API</h1>
+        <p class="text-xs text-gray-500 mt-1">Monks Case v1.0</p>
+      </div>
+      <nav class="p-4 space-y-1">
+        <a href="#autenticacao" class="block px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 hover:text-gray-900 transition-colors">Autenticação</a>
+        
+        <div class="pt-4 pb-2">
+          <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">1. Geral & Sessão</p>
+        </div>
+        <a href="#endpoint-session" class="block px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 transition-colors">POST /session/</a>
+        <a href="#endpoint-login-users" class="block px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 transition-colors">GET /login-users/</a>
+        
+        <div class="pt-4 pb-2">
+          <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">2. Dashboard</p>
+        </div>
+        <a href="#endpoint-dashboard" class="block px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 transition-colors">GET /team/dashboard/</a>
+        <a href="#endpoint-history" class="block px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 transition-colors">GET /team/history/</a>
+
+        <div class="pt-4 pb-2">
+          <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">3. Avaliações (RIT)</p>
+        </div>
+        <a href="#endpoint-evaluations-post" class="block px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 transition-colors">POST /evaluations/</a>
+        <a href="#endpoint-evaluations-recent" class="block px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 transition-colors">GET /evaluations/recent/</a>
+
+        <div class="pt-4 pb-2">
+          <p class="px-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">4. Configurações</p>
+        </div>
+        <a href="#endpoint-questions-get" class="block px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 transition-colors">GET /questions/versions/current/</a>
+        <a href="#endpoint-questions-post" class="block px-3 py-2 text-sm font-medium text-gray-600 rounded-md hover:bg-gray-100 transition-colors">POST /questions/versions/</a>
+      </nav>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 p-6 md:p-12 overflow-x-hidden max-w-5xl">
+      <header class="mb-8 border-b border-gray-200 pb-8">
+        <h2 class="text-4xl font-extrabold text-gray-900 tracking-tight mb-4">Documentação de Endpoints</h2>
+        <p class="text-lg text-gray-600 mb-6">
+          A API segue o padrão REST e retorna respostas no formato JSON. Você pode testar as requisições diretamente por aqui.
+        </p>
+
+        <!-- AVISO DOCKER -->
+        <div class="bg-amber-50 border-l-4 border-amber-500 p-4 rounded-r shadow-sm">
+          <div class="flex">
+            <div class="flex-shrink-0">
+              <svg class="h-5 w-5 text-amber-400" viewBox="0 0 20 20" fill="currentColor">
+                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+              </svg>
+            </div>
+            <div class="ml-3">
+              <p class="text-sm text-amber-700">
+                <strong>Atenção:</strong> Certifique-se de que o container do Docker (backend) está rodando localmente na porta <code>8000</code> para que as funções de Testar funcionem sem erros de rede.
+              </p>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <section id="autenticacao" class="mb-16 bg-white p-8 rounded-xl shadow-sm border border-gray-100 scroll-mt-8">
+        <h2 class="text-2xl font-bold text-gray-900 mb-4">Autenticação</h2>
+        <p class="text-gray-600 mb-4">
+          A API utiliza Custom Headers para identificar o usuário logado. Para endpoints marcados como <strong>Autenticado</strong>, injetaremos o header `X-User-Email` utilizando o valor preenchido abaixo:
+        </p>
+        <div class="bg-indigo-50 border border-indigo-100 rounded-lg p-5">
+          <label class="block text-sm font-semibold text-indigo-900 mb-2">Email para testes (X-User-Email):</label>
+          <input type="email" id="auth-email" value="macielniiicolas@gmail.com" class="w-full md:w-1/2 px-4 py-2 border border-indigo-200 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500 font-mono text-sm">
+        </div>
+      </section>
+
+      <div class="space-y-16">
+        
+        <!-- Módulo: Autenticação / Inicial -->
+        <div>
+          <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b border-gray-200 pb-2">1. Geral & Sessão</h2>
+          
+          <!-- Endpoint: Login -->
+          <div id="endpoint-session" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 scroll-mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="method-badge post">POST</span>
+                <code class="font-mono text-gray-900 font-semibold text-sm md:text-base">/api/session/</code>
+              </div>
+              <div class="flex gap-2">
+                <span class="text-xs font-semibold px-2 py-1 bg-gray-200 text-gray-600 rounded">Público</span>
+                <button onclick="copyCurl(this, '/api/session/', 'POST', 'code-session', false)" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-semibold px-2 py-1 rounded transition-colors">Copiar cURL</button>
+              </div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Inicia a sessão e valida a existência do e-mail do usuário no sistema.</p>
+              
+              <div class="mt-4">
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="font-semibold text-gray-900 text-sm">Request Body (JSON)</h4>
+                  <div class="flex gap-2">
+                    <button onclick="copyToClipboard(this, 'code-session')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-1.5 px-3 rounded transition-colors">Copiar JSON</button>
+                    <button onclick="testRequest(this, '/api/session/', 'POST', 'code-session', 'term-session', false)" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded transition-colors">Testar Request</button>
+                  </div>
+                </div>
+<pre><code id="code-session">{
+  "email": "macielniiicolas@gmail.com"
+}</code></pre>
+                
+                <!-- Terminal block -->
+                <pre id="term-session" class="term mt-4 hidden p-4 rounded-lg font-mono text-sm overflow-x-auto"></pre>
+                
+                <div class="mt-6 border-t border-gray-100 pt-4">
+                  <h4 class="font-semibold text-gray-900 text-sm mb-3">Exemplos de Resposta</h4>
+                  <div class="space-y-3">
+                    <div>
+                      <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-green-500"></span><span class="text-xs font-semibold text-gray-700">200 OK</span></div>
+                      <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "id": 16,
+  "name": "Nicolas Maciel",
+  "email": "macielniiicolas@gmail.com",
+  "position_name": "Software Analyst"
+}</code></pre>
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-xs font-semibold text-gray-700">404 Not Found</span></div>
+                      <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "error": "User not found"
+}</code></pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Endpoint: Listar Mock Users -->
+          <div id="endpoint-login-users" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 scroll-mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="method-badge get">GET</span>
+                <code class="font-mono text-gray-900 font-semibold text-sm md:text-base">/api/login-users/</code>
+              </div>
+              <div class="flex gap-2">
+                <span class="text-xs font-semibold px-2 py-1 bg-gray-200 text-gray-600 rounded">Público</span>
+                <button onclick="copyCurl(this, '/api/login-users/', 'GET', null, false)" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-semibold px-2 py-1 rounded transition-colors">Copiar cURL</button>
+              </div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Retorna a lista de todos os funcionários cadastrados para popular o seletor de acesso rápido do frontend.</p>
+              
+              <div class="flex justify-end">
+                <button onclick="testRequest(this, '/api/login-users/', 'GET', null, 'term-login-users', false)" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded transition-colors">Testar Request</button>
+              </div>
+              <pre id="term-login-users" class="term mt-4 hidden p-4 rounded-lg font-mono text-sm overflow-x-auto"></pre>
+              
+              <div class="mt-6 border-t border-gray-100 pt-4">
+                <h4 class="font-semibold text-gray-900 text-sm mb-3">Exemplos de Resposta</h4>
+                <div class="space-y-3">
+                  <div>
+                    <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-green-500"></span><span class="text-xs font-semibold text-gray-700">200 OK</span></div>
+                    <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>[
+  {
+    "id": 1,
+    "name": "Alice Hartman",
+    "email": "alice.hartman@company.com",
+    "position_name": "CEO"
+  },
+  {
+    "id": 2,
+    "name": "Bob Sinclair",
+    "email": "bob.sinclair@company.com",
+    "position_name": "CTO"
+  }
+]</code></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Módulo: Dashboard & Equipe -->
+        <div>
+          <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b border-gray-200 pb-2">2. Dashboard & Equipe</h2>
+          
+          <!-- Endpoint: Team Dashboard -->
+          <div id="endpoint-dashboard" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 scroll-mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="method-badge get">GET</span>
+                <code class="font-mono text-gray-900 font-semibold text-sm md:text-base">/api/team/dashboard/</code>
+              </div>
+              <div class="flex gap-2">
+                <span class="text-xs font-semibold px-2 py-1 bg-indigo-100 text-indigo-700 rounded">Autenticado</span>
+                <button onclick="copyCurl(this, '/api/team/dashboard/', 'GET', null, true)" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-semibold px-2 py-1 rounded transition-colors">Copiar cURL</button>
+              </div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Retorna a hierarquia do usuário logado (liderados diretos e indiretos), o total de avaliações concluídas e pendentes no ciclo, além dos dados do líder acima dele.</p>
+              
+              <div class="flex justify-end">
+                <button onclick="testRequest(this, '/api/team/dashboard/', 'GET', null, 'term-dash', true)" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded transition-colors">Testar Request</button>
+              </div>
+              <pre id="term-dash" class="term mt-4 hidden p-4 rounded-lg font-mono text-sm overflow-x-auto"></pre>
+
+              <div class="mt-6 border-t border-gray-100 pt-4">
+                <h4 class="font-semibold text-gray-900 text-sm mb-3">Exemplos de Resposta</h4>
+                <div class="space-y-3">
+                  <div>
+                    <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-green-500"></span><span class="text-xs font-semibold text-gray-700">200 OK</span></div>
+                    <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "total_evaluations_remaining": 5,
+  "leader": {
+    "id": 2,
+    "name": "Bob Sinclair"
+  },
+  "team": [
+    {
+      "id": 10,
+      "name": "Jane Doe",
+      "position_name": "Developer",
+      "evaluations_remaining": 1,
+      "days_until_next_evaluation": 0,
+      "average_score": 4.5
+    }
+  ]
+}</code></pre>
+                  </div>
+                  <div>
+                    <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-xs font-semibold text-gray-700">403 Forbidden</span></div>
+                    <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "detail": "As credenciais de autenticação não foram fornecidas."
+}</code></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Endpoint: Team History -->
+          <div id="endpoint-history" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 scroll-mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="method-badge get">GET</span>
+                <code class="font-mono text-gray-900 font-semibold text-sm md:text-base">/api/team/history/</code>
+              </div>
+              <div class="flex gap-2">
+                <span class="text-xs font-semibold px-2 py-1 bg-indigo-100 text-indigo-700 rounded">Autenticado</span>
+                <button onclick="copyCurl(this, '/api/team/history/', 'GET', null, true)" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-semibold px-2 py-1 rounded transition-colors">Copiar cURL</button>
+              </div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Retorna o histórico de média de avaliações feitas pela equipe nos últimos 6 meses para desenhar o gráfico analítico.</p>
+
+              <div class="flex justify-end">
+                <button onclick="testRequest(this, '/api/team/history/', 'GET', null, 'term-history', true)" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded transition-colors">Testar Request</button>
+              </div>
+              <pre id="term-history" class="term mt-4 hidden p-4 rounded-lg font-mono text-sm overflow-x-auto"></pre>
+              
+              <div class="mt-6 border-t border-gray-100 pt-4">
+                <h4 class="font-semibold text-gray-900 text-sm mb-3">Exemplos de Resposta</h4>
+                <div class="space-y-3">
+                  <div>
+                    <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-green-500"></span><span class="text-xs font-semibold text-gray-700">200 OK</span></div>
+                    <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>[
+  {
+    "month": "2026-08",
+    "average": 4.2
+  },
+  {
+    "month": "2026-07",
+    "average": 3.8
+  }
+]</code></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Módulo: Avaliações -->
+        <div>
+          <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b border-gray-200 pb-2">3. Avaliações (RIT)</h2>
+          
+          <!-- Endpoint: Send Evaluation -->
+          <div id="endpoint-evaluations-post" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 scroll-mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="method-badge post">POST</span>
+                <code class="font-mono text-gray-900 font-semibold text-sm md:text-base">/api/evaluations/</code>
+              </div>
+              <div class="flex gap-2">
+                <span class="text-xs font-semibold px-2 py-1 bg-indigo-100 text-indigo-700 rounded">Autenticado</span>
+                <button onclick="copyCurl(this, '/api/evaluations/', 'POST', 'code-eval-post', true)" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-semibold px-2 py-1 rounded transition-colors">Copiar cURL</button>
+              </div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Submete as notas de uma avaliação de desempenho para um membro da equipe.</p>
+              
+              <div class="mt-4">
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="font-semibold text-gray-900 text-sm">Request Body (JSON)</h4>
+                  <div class="flex gap-2">
+                    <button onclick="copyToClipboard(this, 'code-eval-post')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-1.5 px-3 rounded transition-colors">Copiar JSON</button>
+                    <button onclick="testRequest(this, '/api/evaluations/', 'POST', 'code-eval-post', 'term-eval-post', true)" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded transition-colors">Testar Request</button>
+                  </div>
+                </div>
+<pre><code id="code-eval-post">{
+  "lead_id": 10,
+  "ratings": [
+    { "question_id": 1, "score": 5 },
+    { "question_id": 2, "score": 4 }
+  ]
+}</code></pre>
+
+                <pre id="term-eval-post" class="term mt-4 hidden p-4 rounded-lg font-mono text-sm overflow-x-auto"></pre>
+
+                <div class="mt-6 border-t border-gray-100 pt-4">
+                  <h4 class="font-semibold text-gray-900 text-sm mb-3">Exemplos de Resposta</h4>
+                  <div class="space-y-3">
+                    <div>
+                      <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-green-500"></span><span class="text-xs font-semibold text-gray-700">201 Created</span></div>
+                      <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "message": "Avaliação enviada com sucesso."
+}</code></pre>
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-xs font-semibold text-gray-700">400 Bad Request</span></div>
+                      <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "error": "Cooldown ativo. Você só pode avaliar este funcionário novamente em 4 dias."
+}</code></pre>
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-xs font-semibold text-gray-700">403 Forbidden</span></div>
+                      <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "error": "Você não tem permissão para avaliar este funcionário."
+}</code></pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Endpoint: Recent Evaluation -->
+          <div id="endpoint-evaluations-recent" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 scroll-mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="method-badge get">GET</span>
+                <code class="font-mono text-gray-900 font-semibold text-sm md:text-base">/api/evaluations/recent/?lead_id=10</code>
+              </div>
+              <div class="flex gap-2">
+                <span class="text-xs font-semibold px-2 py-1 bg-indigo-100 text-indigo-700 rounded">Autenticado</span>
+                <button onclick="copyCurl(this, '/api/evaluations/recent/?lead_id=10', 'GET', null, true)" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-semibold px-2 py-1 rounded transition-colors">Copiar cURL</button>
+              </div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Verifica se o funcionário (lead_id) já foi avaliado dentro da janela de cooldown (7 dias). Utilizado para bloquear múltiplas avaliações em curto período.</p>
+              
+              <div class="flex justify-end">
+                <button onclick="testRequest(this, '/api/evaluations/recent/?lead_id=10', 'GET', null, 'term-recent', true)" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded transition-colors">Testar Request</button>
+              </div>
+              <pre id="term-recent" class="term mt-4 hidden p-4 rounded-lg font-mono text-sm overflow-x-auto"></pre>
+              
+              <div class="mt-6 border-t border-gray-100 pt-4">
+                <h4 class="font-semibold text-gray-900 text-sm mb-3">Exemplos de Resposta</h4>
+                <div class="space-y-3">
+                  <div>
+                    <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-green-500"></span><span class="text-xs font-semibold text-gray-700">200 OK</span></div>
+                    <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "has_recent": true,
+  "days_remaining": 4
+}</code></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Módulo: Configurações de Métricas -->
+        <div>
+          <h2 class="text-3xl font-bold text-gray-900 mb-6 border-b border-gray-200 pb-2">4. Configurações Globais (Admin)</h2>
+          
+          <!-- Endpoint: Get Current Questions -->
+          <div id="endpoint-questions-get" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 scroll-mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="method-badge get">GET</span>
+                <code class="font-mono text-gray-900 font-semibold text-sm md:text-base">/api/questions/versions/current/</code>
+              </div>
+              <div class="flex gap-2">
+                <span class="text-xs font-semibold px-2 py-1 bg-indigo-100 text-indigo-700 rounded">Autenticado</span>
+                <button onclick="copyCurl(this, '/api/questions/versions/current/', 'GET', null, true)" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-semibold px-2 py-1 rounded transition-colors">Copiar cURL</button>
+              </div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Retorna o bloco de perguntas da "versão ativa" do sistema de avaliações, englobando os pesos individuais para o cálculo RIT.</p>
+
+              <div class="flex justify-end">
+                <button onclick="testRequest(this, '/api/questions/versions/current/', 'GET', null, 'term-quest-get', true)" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded transition-colors">Testar Request</button>
+              </div>
+              <pre id="term-quest-get" class="term mt-4 hidden p-4 rounded-lg font-mono text-sm overflow-x-auto"></pre>
+
+              <div class="mt-6 border-t border-gray-100 pt-4">
+                <h4 class="font-semibold text-gray-900 text-sm mb-3">Exemplos de Resposta</h4>
+                <div class="space-y-3">
+                  <div>
+                    <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-green-500"></span><span class="text-xs font-semibold text-gray-700">200 OK</span></div>
+                    <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>[
+  {
+    "id": 1,
+    "title": "Entrega de Resultados",
+    "weight": 25
+  },
+  {
+    "id": 2,
+    "title": "Qualidade Técnica",
+    "weight": 25
+  }
+]</code></pre>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Endpoint: Set New Version -->
+          <div id="endpoint-questions-post" class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-8 scroll-mt-8">
+            <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <span class="method-badge post">POST</span>
+                <code class="font-mono text-gray-900 font-semibold text-sm md:text-base">/api/questions/versions/</code>
+              </div>
+              <div class="flex gap-2">
+                <span class="text-xs font-semibold px-2 py-1 bg-red-100 text-red-700 rounded">Restrito: CEO, CTO, CFO</span>
+                <button onclick="copyCurl(this, '/api/questions/versions/', 'POST', 'code-questions-post', true)" class="text-xs bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-semibold px-2 py-1 rounded transition-colors">Copiar cURL</button>
+              </div>
+            </div>
+            <div class="p-6">
+              <p class="text-gray-600 mb-4">Gera uma nova versão de formulário. Todos os relatórios gerados a partir deste ponto utilizarão essa nova composição para seus cálculos de performance.</p>
+              
+              <div class="mt-4">
+                <div class="flex items-center justify-between mb-2">
+                  <h4 class="font-semibold text-gray-900 text-sm">Request Body (JSON)</h4>
+                  <div class="flex gap-2">
+                    <button onclick="copyToClipboard(this, 'code-questions-post')" class="text-xs bg-gray-200 hover:bg-gray-300 text-gray-700 font-medium py-1.5 px-3 rounded transition-colors">Copiar JSON</button>
+                    <button onclick="testRequest(this, '/api/questions/versions/', 'POST', 'code-questions-post', 'term-quest-post', true)" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-medium py-1.5 px-3 rounded transition-colors">Testar Request</button>
+                  </div>
+                </div>
+<pre><code id="code-questions-post">{
+  "questions": [
+    { "title": "Entrega de Resultados", "weight": 25 },
+    { "title": "Execução e Qualidade", "weight": 20 }
+  ]
+}</code></pre>
+
+                <pre id="term-quest-post" class="term mt-4 hidden p-4 rounded-lg font-mono text-sm overflow-x-auto"></pre>
+                
+                <div class="mt-6 border-t border-gray-100 pt-4">
+                  <h4 class="font-semibold text-gray-900 text-sm mb-3">Exemplos de Resposta</h4>
+                  <div class="space-y-3">
+                    <div>
+                      <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-green-500"></span><span class="text-xs font-semibold text-gray-700">201 Created</span></div>
+                      <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "message": "Nova versão de formulário criada com sucesso."
+}</code></pre>
+                    </div>
+                    <div>
+                      <div class="flex items-center gap-2 mb-1"><span class="w-2 h-2 rounded-full bg-red-500"></span><span class="text-xs font-semibold text-gray-700">403 Forbidden</span></div>
+                      <pre class="bg-gray-50 text-gray-800 p-3 rounded border border-gray-200 text-xs"><code>{
+  "error": "Apenas membros da diretoria (C-Level) podem alterar métricas globais."
+}</code></pre>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </main>
+  </div>
+</body>
+</html>
