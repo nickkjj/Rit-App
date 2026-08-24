@@ -93,6 +93,4 @@ Estão presentes cenários de testes via `pytest`/`django.test` na pasta `tests/
 ## 6. Documentação da API (Endpoints)
 
 A documentação interativa de rotas (Swagger-like) foi desenvolvida sob medida e acoplada nativamente.
-Para consultar as especificações completas de Endpoints (JSON, Request, Response, Status Codes), rode o projeto e acesse o Endpoint de Documentação Interativa:
-
-Link: [http://localhost:8000/api/docs/](http://localhost:8000/api/docs/)
+Para consultar as especificações completas de Endpoints (JSON, Request, Response, Status Codes), acesse a rota na api `/api/docs/` ou acesse a versão .md em: [API_DOCS.md](https://github.com/nickkjj/Rit-App/blob/main/API_DOCS.md)
